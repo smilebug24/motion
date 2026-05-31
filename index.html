@@ -3,159 +3,157 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>로컬 AI 챗봇 (No Token)</title>
-    
-    <script type="module">
-        import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.16.0';
-        
-        // 로컬 파일 탐색을 끄고 원격 저장소에서만 모델을 받도록 설정
-        env.allowLocalModels = false;
-        env.allowRemoteModels = true;
-
-        // 브라우저 캐시를 사용해 재방문 시 재다운로드를 줄임
-        env.useBrowserCache = true;
-        
-        window.pipeline = pipeline; // 자바스크립트 전역 변수로 등록
-    </script>
-
+    <title>공공데이터 융합: AI 헬스 가이드</title>
     <style>
         body { 
             font-family: 'Malgun Gothic', sans-serif; 
             margin: 0; padding: 20px; 
-            background-color: #0f172a; 
+            background: linear-gradient(to bottom, #0f172a, #1e293b); 
             color: #f8fafc; 
             display: flex; flex-direction: column; align-items: center; justify-content: center; 
             min-height: 100vh; box-sizing: border-box; 
         }
-        h1 { font-size: 1.4rem; color: #38bdf8; margin-bottom: 5px; text-align: center; }
-        p { font-size: 0.85rem; color: #94a3b8; margin-top: 0; margin-bottom: 15px; text-align: center; }
+        h1 { font-size: 1.5rem; color: #22c55e; margin-bottom: 5px; text-align: center; }
+        p { font-size: 0.85rem; color: #94a3b8; margin-top: 0; margin-bottom: 20px; text-align: center; }
         
-        /* 챗봇 모바일 플렉서블 컨테이너 */
-        #chat-container { 
-            width: 100%; max-width: 450px; height: 60vh; 
-            background: #1e293b; border-radius: 16px; border: 1px solid #334155; 
-            display: flex; flex-direction: column; overflow: hidden; 
-            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); 
+        .card { 
+            width: 100%; max-width: 480px; 
+            background: #1e293b; padding: 25px; border-radius: 16px; 
+            border: 1px solid #334155; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); 
+            box-sizing: border-box;
         }
-        #chat-window { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; font-size: 0.95rem; }
         
-        /* 말풍선 스타일 디자인 */
-        .msg { padding: 10px 14px; border-radius: 12px; max-width: 80%; word-break: break-all; line-height: 1.4; }
-        .user { background: #38bdf8; color: #0f172a; align-self: flex-end; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .ai { background: #334155; color: #f8fafc; align-self: flex-start; border: 1px solid #475569; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .status { font-weight: bold; color: #38bdf8; text-align: center; margin-bottom: 20px; font-size: 0.95rem; }
         
-        /* 하단 입력창 구역 */
-        #input-box { display: flex; padding: 10px; background: #0f172a; border-top: 1px solid #334155; }
-        input { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #334155; background: #1e293b; color: #fff; outline: none; font-size: 0.95rem; }
-        input:disabled { background: #0f172a; color: #64748b; cursor: not-allowed; }
-        button { margin-left: 8px; padding: 0 20px; background: #38bdf8; color: #0f172a; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
-        button:disabled { background: #475569; color: #94a3b8; cursor: not-allowed; }
+        .input-group { margin-bottom: 15px; }
+        label { display: block; font-size: 0.9rem; color: #cbd5e1; margin-bottom: 6px; }
+        input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #fff; outline: none; font-size: 1rem; box-sizing: border-box; }
+        
+        button { width: 100%; padding: 14px; background: #22c55e; color: #0f172a; border: none; border-radius: 8px; font-weight: bold; font-size: 1rem; cursor: pointer; margin-top: 10px; }
+        button:hover { background: #4ade80; }
+        
+        #result-box { margin-top: 20px; padding: 15px; border-radius: 8px; background: #0f172a; border: 1px solid #334155; text-align: center; display: none; }
+        .danger { color: #f87171; font-size: 1.25rem; font-weight: bold; }
+        .normal { color: #4ade80; font-size: 1.25rem; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <h1>🌐 온디바이스 AI 비밀 대화방</h1>
-    <p>서버가 없습니다. 토큰이 없습니다. 데이터 유출 걱정 제로!</p>
+    <h1>🏥 공공데이터 기반 웰니스 AI</h1>
+    <p>국민건강보험 신체검사 지표를 활용한 비만 위험도 분류 예측 시스템</p>
     
-    <div id="chat-container">
-        <div id="chat-window">
-            <div class="msg ai" id="system-msg">🤖 브라우저 내부로 안전하게 AI 모델을 다운로드하는 중입니다. 잠시만 기다려주세요... (약 250MB)</div>
+    <div class="card">
+        <div id="model-status" class="status">⏳ 대규모 공공데이터 분석 및 가중치 수렴 중...</div>
+        
+        <div class="input-group">
+            <label for="waist-input">1. 허리둘레 (cm 단위 입력):</label>
+            <input type="number" id="waist-input" placeholder="예: 82" min="50" max="150">
         </div>
-        <div id="input-box">
-            <input type="text" id="user-input" placeholder="AI 모델 로딩 완료 후 입력 가능합니다..." disabled onkeypress="if(event.keyCode==13) sendMsg()">
-            <button id="send-btn" onclick="sendMsg()" disabled>전송</button>
+        
+        <div class="input-group">
+            <label for="bp-input">2. 수축기 혈압 (최고혈압, mmHg):</label>
+            <input type="number" id="bp-input" placeholder="예: 120" min="80" max="200">
         </div>
+        
+        <div class="input-group">
+            <label for="sugar-input">3. 공복 혈당 (mg/dL):</label>
+            <input type="number" id="sugar-input" placeholder="예: 95" min="50" max="300">
+        </div>
+        
+        <button onclick="predictWellness()">종합 위험도 분석하기</button>
+        
+        <div id="result-box">
+            </div>
     </div>
 
     <script>
-        const chatWindow = document.getElementById('chat-window');
-        const userInput = document.getElementById('user-input');
-        const sendBtn = document.getElementById('send-btn');
-        const systemMsg = document.getElementById('system-msg');
+        // ⭐️ 1. 다중 속성 공공데이터셋 정의 (행: [허리둘레, 수축기혈압, 공복혈당])
+        const trainX = [
+            [72, 110, 85],  [95, 140, 115], [80, 118, 90], 
+            [88, 130, 105], [68, 105, 80],  [102, 145, 120],
+            [76, 122, 95],  [91, 135, 110], [84, 120, 88]
+        ];
+        // 정답 레이블 (0: 정상체중, 1: 비만위험군)
+        const trainY = [0, 1, 0, 1, 0, 1, 0, 1, 0];
 
-        let generator = null;
+        // 파라미터 선언 (속성이 3개이므로 가중치도 3개 배열로 설정)
+        let w = [0.0, 0.0, 0.0];
+        let b = 0.0;
+        const learningRate = 0.0001; // 다중 변수 발산 방지를 위해 학습률 조정
+        const epochs = 3000;
 
-        // 1. 페이지 로드 시 허깅페이스 미러 서버에서 모델 다운로드 및 브라우저 탑재 시작
-        async function loadModel() {
-            const modelCandidates = [
-                'Xenova/LaMini-Flan-T5-78M',
-                'Xenova/flan-t5-small'
-            ];
+        function sigmoid(z) {
+            return 1 / (1 + Math.exp(-z));
+        }
 
-            let lastError = null;
+        // ⭐️ 2. 다중 경사하강법(Multi-variable Gradient Descent) 모델 최적화
+        function trainModel() {
+            const n = trainX.length;
 
-            try {
-                // 모델/리비전 변경으로 인한 404를 대비해 후보 모델을 순차 시도
-                for (const modelName of modelCandidates) {
-                    systemMsg.innerText = `🤖 AI 모델 다운로드 중: ${modelName}`;
-                    try {
-                        generator = await window.pipeline('text2text-generation', modelName);
-                        break;
-                    } catch (e) {
-                        lastError = e;
-                        console.warn(`모델 로드 실패: ${modelName}`, e);
-                    }
+            for (let epoch = 0; epoch < epochs; epoch++) {
+                let dw = [0, 0, 0];
+                let db = 0;
+
+                for (let i = 0; i < n; i++) {
+                    const x = trainX[i];
+                    const y = trainY[i];
+
+                    // z = w1*x1 + w2*x2 + w3*x3 + b 계산
+                    let z = w[0]*x[0] + w[1]*x[1] + w[2]*x[2] + b;
+                    const predProb = sigmoid(z);
+                    const error = predProb - y;
+
+                    // 변수별 미분값 누적
+                    dw[0] += error * x[0];
+                    dw[1] += error * x[1];
+                    dw[2] += error * x[2];
+                    db += error;
                 }
 
-                if (!generator) {
-                    throw lastError || new Error('모든 모델 후보 로드 실패');
-                }
-                
-                // 로딩 완료 시 UI 활성화 및 안내 변경
-                systemMsg.innerText = "🎯 AI 모델 다운로드 및 메모리 탑재 완료! 영문으로 질문을 입력해보세요. (예: Hello!, What is AI?)";
-                userInput.disabled = false;
-                sendBtn.disabled = false;
-                userInput.placeholder = "영문으로 대화를 시작하세요...";
-                userInput.focus();
-            } catch (err) {
-                systemMsg.innerText = "❌ 모델 로드 실패. 네트워크 상태 또는 CDN 접근 권한을 확인하세요.";
-                console.error(err);
+                // 가중치 업데이트
+                w[0] -= (learningRate * dw[0]) / n;
+                w[1] -= (learningRate * dw[1]) / n;
+                w[2] -= (learningRate * dw[2]) / n;
+                b -= (learningRate * db) / n;
+            }
+
+            document.getElementById('model-status').innerText = "🎯 데이터 연동 및 가중치 수식 산출 완료!";
+            document.getElementById('model-status').style.color = "#22c55e";
+        }
+
+        // ⭐️ 3. 멀티 인풋 예측 로직 구현
+        function predictWellness() {
+            const waist = parseFloat(document.getElementById('waist-input').value.trim());
+            const bp = parseFloat(document.getElementById('bp-input').value.trim());
+            const sugar = parseFloat(document.getElementById('sugar-input').value.trim());
+            const resultBox = document.getElementById('result-box');
+
+            if (isNaN(waist) || isNaN(bp) || isNaN(sugar)) {
+                alert("모든 필수 속성 지표를 정수로 정확히 입력해 주세요.");
+                return;
+            }
+
+            // 다중 선형 변환 후 시그모이드 매핑
+            const z = w[0]*waist + w[1]*bp + w[2]*sugar + b;
+            const probability = sigmoid(z);
+            const riskPercent = Math.round(probability * 100);
+
+            resultBox.style.display = "block";
+
+            if (probability >= 0.5) {
+                resultBox.innerHTML = `
+                    <p>AI 예측 결과: <span class="danger">⚠️ 대사증후군 및 비만 위험군</span></p>
+                    <p style="font-size:0.9rem; color:#94a3b8;">종합 신체 지표 위험도: <strong>${riskPercent}%</strong></p>
+                `;
+            } else {
+                resultBox.innerHTML = `
+                    <p>AI 예측 결과: <span class="normal">✅ 정상 체중군 (안정 상태)</span></p>
+                    <p style="font-size:0.9rem; color:#94a3b8;">종합 신체 지표 위험도: <strong>${riskPercent}%</strong></p>
+                `;
             }
         }
 
-        // 2. 100% 로컬 브라우저 연산 기반 메시지 전송 및 답변 생성
-        async function sendMsg() {
-            const text = userInput.value.trim();
-            if (!text || !generator) return;
-
-            // 유저 말풍선 추가
-            appendMessage(text, 'user');
-            userInput.value = '';
-
-            // AI 연산 시작 안내 말풍선 추가
-            const loadingDiv = appendMessage("스마트폰 내부 장치로 문장 연산 중...", 'ai');
-
-            try {
-                // 외부 통신 없이 기기 자체 자원(WebAssembly)으로 수행되는 문장 생성 연산
-                const response = await generator(text, {
-                    max_new_tokens: 60,
-                    temperature: 0.7,
-                    repetition_penalty: 1.2
-                });
-
-                // 생성된 결과 텍스트 추출 및 화면 표기
-                const aiReply = response[0].generated_text;
-                loadingDiv.innerText = aiReply;
-            } catch (err) {
-                loadingDiv.innerText = "❌ 내부 연산 중 오류가 발생했습니다.";
-                console.error(err);
-            }
-        }
-
-        // 말풍선을 채팅창에 추가하고 스크롤을 하단으로 내리는 함수
-        function appendMessage(text, sender) {
-            const div = document.createElement('div');
-            div.className = `msg ${sender}`;
-            div.innerText = text;
-            chatWindow.appendChild(div);
-            chatWindow.scrollTop = chatWindow.scrollHeight; // 스크롤 하단 자동 이동
-            return div;
-        }
-
-        // 라이브러리 연동 안정성 확보를 위해 1초 뒤 모델 로드 실행
-        window.onload = () => {
-            setTimeout(loadModel, 1000);
-        };
+        window.onload = trainModel;
     </script>
 </body>
 </html>
