@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 챌린지: 실시간 동작 인식기</title>
+    <title>AI 챌린지: 모바일 모션 트레이너</title>
     
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <script src="https://unpkg.com/ml5@0.12.2/dist/ml5.min.js"></script>
 
     <style>
         body { 
@@ -23,6 +22,7 @@
 
         #dashboard {
             display: flex; gap: 15px; width: 100%; max-width: 500px; margin-bottom: 15px;
+            z-index: 10;
         }
         .info-box { 
             flex: 1; background: #1e293b; padding: 10px; border-radius: 12px; 
@@ -30,14 +30,14 @@
         }
         .count-num { font-size: 1.5rem; color: #facc15; display: block; margin-top: 5px; }
 
-        /* 모바일 플렉서블 컨테이너 */
-        #canvas-container { 
-            position: relative; width: 100%; max-width: 500px; aspect-ratio: 4 / 3; 
-            background: #000; border-radius: 16px; overflow: hidden; border: 2px solid #334155; 
+        /* 💡 모바일 캔버스 박스 스케일링 설정 */
+        #canvas-holder {
+            position: relative; width: 100%; max-width: 500px; aspect-ratio: 4 / 3;
+            border-radius: 16px; overflow: hidden; border: 2px solid #334155;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+            background-color: #000;
         }
-        /* 💡 모바일 멈춤 해결을 위해 video 요소를 완전히 숨기지 않고 1x1 픽셀로 활성화 상태 유지 */
-        video { position: absolute; width: 1px; height: 1px; opacity: 0; } 
-        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
+        canvas { width: 100% !important; height: 100% !important; object-fit: cover; }
     </style>
 </head>
 <body>
@@ -50,115 +50,101 @@
         <div class="info-box">만세 횟수 <span id="counter" class="count-num">0</span></div>
     </div>
     
-    <div id="canvas-container">
-        <video id="webcam" autoplay playsinline muted></video>
-        <canvas id="output_canvas"></canvas>
-    </div>
+    <div id="canvas-holder"></div>
 
     <script>
-        const videoElement = document.getElementById('webcam');
-        const canvasElement = document.getElementById('output_canvas');
-        const canvasCtx = canvasElement.getContext('2d');
+        let video;
+        let poseNet;
+        let poses = [];
+        
+        let count = 0;
+        let isManse = false;
+        
         const statusText = document.getElementById('status-text');
         const counterElement = document.getElementById('counter');
 
-        let count = 0;
-        let isManse = false; 
+        // 1. p5.js 설정 및 카메라 강제 구동 (모바일 멈춤 철저히 방지)
+        function setup() {
+            // 화면 크기에 맞는 대화형 캔버스 생성 및 지정 구역 배치
+            const canvas = createCanvas(640, 480);
+            canvas.parent('canvas-holder');
 
-        function onResults(results) {
-            // 모델 로드가 끝나고 첫 프레임이 들어오면 상태 표시 변경
-            if (statusText.innerText === "연산 장치 준비 중...") {
-                statusText.innerText = "자세 대기 중";
-            }
-
-            if (!results.poseLandmarks) {
-                statusText.innerText = "사람 없음 🔍";
-                return;
-            }
-
-            // 실시간 해상도 동기화 보완
-            if (canvasElement.width !== videoElement.videoWidth || canvasElement.height !== videoElement.videoHeight) {
-                canvasElement.width = videoElement.videoWidth;
-                canvasElement.height = videoElement.videoHeight;
-            }
-
-            canvasCtx.save();
-            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
-
-            // 골격 그리기
-            drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTORS, {color: '#00ff55', lineWidth: 3});
-            drawLandmarks(canvasCtx, results.poseLandmarks, {color: '#ff0055', lineWidth: 1, radius: 4});
-
-            // 동작 인식 계산
-            const leftShoulder = results.poseLandmarks[11];
-            const rightShoulder = results.poseLandmarks[12];
-            const leftWrist = results.poseLandmarks[15];
-            const rightWrist = results.poseLandmarks[16];
-
-            if (leftWrist.y < leftShoulder.y && rightWrist.y < rightShoulder.y) {
-                statusText.innerText = "🙌 만세 성공!!";
-                statusText.style.color = "#4ade80";
-                
-                if (!isManse) {
-                    count++;
-                    counterElement.innerText = count;
-                    isManse = true; 
+            // 스마트폰 전면 카메라 요청 옵션 세팅
+            const constraints = {
+                video: { facingMode: "user", width: 640, height: 480 },
+                audio: false
+            };
+            
+            statusText.innerText = "카메라 연결 중...";
+            video = createCapture(constraints, function(stream) {
+                statusText.innerText = "AI 엔진 로드 중...";
+                // 모바일 브라우저의 강제 정지를 막기 위한 play 유도
+                const videoEl = document.querySelector('video');
+                if(videoEl) {
+                    videoEl.setAttribute('playsinline', '');
+                    videoEl.muted = true;
+                    videoEl.play();
                 }
-            } else {
-                statusText.innerText = "자세 대기 중";
-                statusText.style.color = "#38bdf8";
-                isManse = false; 
-            }
+            });
+            video.size(640, 480);
+            video.hide(); // 원본 영상 피드는 숨김
 
-            canvasCtx.restore();
+            // 2. 포즈 인식 엔진(PoseNet) 초기화
+            poseNet = ml5.poseNet(video, modelReady);
+            poseNet.on('pose', function(results) {
+                poses = results;
+            });
         }
 
-        const pose = new Pose({
-            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
-        });
-        
-        pose.setOptions({
-            modelComplexity: 0, // 💡 모바일 가동 속도 향상을 위해 모델 경량화(0단계) 설정
-            smoothLandmarks: true,
-            minDetectionConfidence: 0.5,
-            minTrackingConfidence: 0.5
-        });
-        pose.onResults(onResults);
+        function modelReady() {
+            statusText.innerText = "자세 대기 중";
+        }
 
-        // 💡 모바일 브라우저 호환성을 위한 네이티브 카메라 구동 방식으로 변경
-        async function startCamera() {
-            try {
-                statusText.innerText = "카메라 요청 중...";
-                // 고정 해상도 대신 모바일 기기가 지원하는 이상적인 환경으로 호출
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
-                    audio: false
-                });
-                videoElement.srcObject = stream;
-                
-                // 비디오 메타데이터가 로드되면 미디어파이프 루프 시작
-                videoElement.onloadedmetadata = () => {
-                    statusText.innerText = "연산 장치 준비 중...";
-                    
-                    async function detectionLoop() {
-                        if (!videoElement.paused && !videoElement.ended) {
-                            await pose.send({image: videoElement});
-                        }
-                        // requestAnimationFrame 기반의 부드러운 연속 호출로 멈춤 예방
-                        videoElement.requestVideoFrameCallback ? 
-                            videoElement.requestVideoFrameCallback(detectionLoop) : 
-                            setTimeout(detectionLoop, 40);
+        // 3. 매 프레임마다 모바일 화면을 다시 그리는 메인 루프 함수
+        function draw() {
+            // 카메라 영상 화면 출력
+            image(video, 0, 0, width, height);
+
+            // 인식된 포즈 데이터가 존재할 때만 연산 가동
+            if (poses.length > 0) {
+                let pose = poses[0].pose;
+
+                // 관절 포인트 드로잉 연산
+                for (let i = 0; i < pose.keypoints.length; i++) {
+                    let keypoint = pose.keypoints[i];
+                    if (keypoint.score > 0.2) {
+                        fill(255, 0, 85);
+                        noStroke();
+                        ellipse(keypoint.position.x, keypoint.position.y, 10, 10);
                     }
-                    detectionLoop();
-                };
-            } catch (err) {
-                statusText.innerText = "❌ 카메라 권한 거부됨";
-                console.error(err);
+                }
+
+                // 💡 주요 관절 데이터 추출 (어깨 및 손목)
+                let leftShoulder = pose.leftShoulder;
+                let rightShoulder = pose.rightShoulder;
+                let leftWrist = pose.leftWrist;
+                let rightWrist = pose.rightWrist;
+
+                // 4. [동작 인식 조건문] 양 손목이 양 어깨보다 위로 올라갔는지 판별
+                // (화면 좌표계 특성상 Y값이 작을수록 상단임)
+                if (leftWrist.confidence > 0.3 && rightWrist.confidence > 0.3) {
+                    if (leftWrist.y < leftShoulder.y && rightWrist.y < rightShoulder.y) {
+                        statusText.innerText = "🙌 만세 성공!!";
+                        statusText.style.color = "#4ade80";
+                        
+                        if (!isManse) {
+                            count++;
+                            counterElement.innerText = count;
+                            isManse = true;
+                        }
+                    } else {
+                        statusText.innerText = "자세 대기 중";
+                        statusText.style.color = "#38bdf8";
+                        isManse = false;
+                    }
+                }
             }
         }
-
-        window.onload = startCamera;
     </script>
 </body>
 </html>
