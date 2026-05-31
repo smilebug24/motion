@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -20,9 +19,8 @@
             min-height: 100vh; box-sizing: border-box; 
         }
         h1 { font-size: 1.6rem; margin-bottom: 5px; color: #38bdf8; text-align: center; }
-        p { font-size: 0.9rem; color: #94a3b8; margin-top: 0; margin-bottom: 15px; }
+        p { font-size: 0.9rem; color: #94a3b8; margin-top: 0; margin-bottom: 15px; text-align: center; }
 
-        /* 대시보드 스코어 보드 */
         #dashboard {
             display: flex; gap: 15px; width: 100%; max-width: 500px; margin-bottom: 15px;
         }
@@ -37,7 +35,8 @@
             position: relative; width: 100%; max-width: 500px; aspect-ratio: 4 / 3; 
             background: #000; border-radius: 16px; overflow: hidden; border: 2px solid #334155; 
         }
-        video { display: none; } /* 원본 영상 숨김 */
+        /* 💡 모바일 멈춤 해결을 위해 video 요소를 완전히 숨기지 않고 1x1 픽셀로 활성화 상태 유지 */
+        video { position: absolute; width: 1px; height: 1px; opacity: 0; } 
         canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
     </style>
 </head>
@@ -47,12 +46,12 @@
     <p>카메라 앞에서 양손을 번쩍 들어 '만세'를 해보세요!</p>
     
     <div id="dashboard">
-        <div class="info-box">현재 상태 <span id="status-text" style="color:#38bdf8; display:block; margin-top:5px;">준비 중...</span></div>
+        <div class="info-box">현재 상태 <span id="status-text" style="color:#38bdf8; display:block; margin-top:5px;">로딩 중...</span></div>
         <div class="info-box">만세 횟수 <span id="counter" class="count-num">0</span></div>
     </div>
     
     <div id="canvas-container">
-        <video id="webcam" playsinline></video>
+        <video id="webcam" autoplay playsinline muted></video>
         <canvas id="output_canvas"></canvas>
     </div>
 
@@ -64,32 +63,39 @@
         const counterElement = document.getElementById('counter');
 
         let count = 0;
-        let isManse = false; // 동작 상태 플래그 (중복 카운트 방지)
+        let isManse = false; 
 
-        // MediaPipe Pose 모델 결과 수신 및 관절 그리기/동작 인식 후처리 함수
         function onResults(results) {
+            // 모델 로드가 끝나고 첫 프레임이 들어오면 상태 표시 변경
+            if (statusText.innerText === "연산 장치 준비 중...") {
+                statusText.innerText = "자세 대기 중";
+            }
+
             if (!results.poseLandmarks) {
                 statusText.innerText = "사람 없음 🔍";
                 return;
             }
 
-            // 캔버스 정비 및 카메라 화면 그리기
+            // 실시간 해상도 동기화 보완
+            if (canvasElement.width !== videoElement.videoWidth || canvasElement.height !== videoElement.videoHeight) {
+                canvasElement.width = videoElement.videoWidth;
+                canvasElement.height = videoElement.videoHeight;
+            }
+
             canvasCtx.save();
             canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
             canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
 
-            // 1. 화면에 관절 포인트 및 골격 선 그리기
+            // 골격 그리기
             drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTORS, {color: '#00ff55', lineWidth: 3});
             drawLandmarks(canvasCtx, results.poseLandmarks, {color: '#ff0055', lineWidth: 1, radius: 4});
 
-            // 2. [동작 인식 핵심 알고리즘] 주요 관절 좌표 가져오기
-            // MediaPipe 인덱스: 11(왼쪽 어깨), 12(오른쪽 어깨), 15(왼쪽 손목), 16(오른쪽 손목)
+            // 동작 인식 계산
             const leftShoulder = results.poseLandmarks[11];
             const rightShoulder = results.poseLandmarks[12];
             const leftWrist = results.poseLandmarks[15];
             const rightWrist = results.poseLandmarks[16];
 
-            // 💡 [컴퓨팅 사고력] 양 손목의 Y 좌표가 양 어깨의 Y 좌표보다 높은지(화면 기준으로는 상단일수록 Y값이 작음) 판별
             if (leftWrist.y < leftShoulder.y && rightWrist.y < rightShoulder.y) {
                 statusText.innerText = "🙌 만세 성공!!";
                 statusText.style.color = "#4ade80";
@@ -97,45 +103,62 @@
                 if (!isManse) {
                     count++;
                     counterElement.innerText = count;
-                    isManse = true; // 만세 상태로 변경하여 연속 카운트 방지
+                    isManse = true; 
                 }
             } else {
                 statusText.innerText = "자세 대기 중";
                 statusText.style.color = "#38bdf8";
-                isManse = false; // 손을 내리면 다시 초기화
+                isManse = false; 
             }
 
             canvasCtx.restore();
         }
 
-        // MediaPipe Pose 설정 및 초기화
         const pose = new Pose({
             locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
         });
         
         pose.setOptions({
-            modelComplexity: 1,
+            modelComplexity: 0, // 💡 모바일 가동 속도 향상을 위해 모델 경량화(0단계) 설정
             smoothLandmarks: true,
-            enableSegmentation: false,
             minDetectionConfidence: 0.5,
             minTrackingConfidence: 0.5
         });
         pose.onResults(onResults);
 
-        // 카메라 모듈 구동 및 실시간 프레임 전송
-        const camera = new Camera(videoElement, {
-            onFrame: async () => {
-                canvasElement.width = videoElement.videoWidth;
-                canvasElement.height = videoElement.videoHeight;
-                await pose.send({image: videoElement});
-            },
-            width: 640,
-            height: 480,
-            facingMode: "environment" // 스마트폰 접속 시 후면 카메라 기본 설정
-        });
-        
-        statusText.innerText = "카메라 켜는 중...";
-        camera.start();
+        // 💡 모바일 브라우저 호환성을 위한 네이티브 카메라 구동 방식으로 변경
+        async function startCamera() {
+            try {
+                statusText.innerText = "카메라 요청 중...";
+                // 고정 해상도 대신 모바일 기기가 지원하는 이상적인 환경으로 호출
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+                    audio: false
+                });
+                videoElement.srcObject = stream;
+                
+                // 비디오 메타데이터가 로드되면 미디어파이프 루프 시작
+                videoElement.onloadedmetadata = () => {
+                    statusText.innerText = "연산 장치 준비 중...";
+                    
+                    async function detectionLoop() {
+                        if (!videoElement.paused && !videoElement.ended) {
+                            await pose.send({image: videoElement});
+                        }
+                        // requestAnimationFrame 기반의 부드러운 연속 호출로 멈춤 예방
+                        videoElement.requestVideoFrameCallback ? 
+                            videoElement.requestVideoFrameCallback(detectionLoop) : 
+                            setTimeout(detectionLoop, 40);
+                    }
+                    detectionLoop();
+                };
+            } catch (err) {
+                statusText.innerText = "❌ 카메라 권한 거부됨";
+                console.error(err);
+            }
+        }
+
+        window.onload = startCamera;
     </script>
 </body>
 </html>
