@@ -3,148 +3,159 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 챌린지: 모바일 모션 트레이너</title>
+    <title>로컬 AI 챗봇 (No Token)</title>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
-    <script src="https://unpkg.com/ml5@0.12.2/dist/ml5.min.js"></script>
+    <script type="module">
+        import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.16.0';
+        
+        // 로컬 파일 탐색을 끄고 원격 저장소에서만 모델을 받도록 설정
+        env.allowLocalModels = false;
+        env.allowRemoteModels = true;
+
+        // 브라우저 캐시를 사용해 재방문 시 재다운로드를 줄임
+        env.useBrowserCache = true;
+        
+        window.pipeline = pipeline; // 자바스크립트 전역 변수로 등록
+    </script>
 
     <style>
         body { 
             font-family: 'Malgun Gothic', sans-serif; 
             margin: 0; padding: 20px; 
-            background: linear-gradient(to bottom, #1e1b4b, #0f172a); 
+            background-color: #0f172a; 
             color: #f8fafc; 
             display: flex; flex-direction: column; align-items: center; justify-content: center; 
             min-height: 100vh; box-sizing: border-box; 
         }
-        h1 { font-size: 1.6rem; margin-bottom: 5px; color: #38bdf8; text-align: center; }
-        p { font-size: 0.9rem; color: #94a3b8; margin-top: 0; margin-bottom: 15px; text-align: center; }
-
-        #dashboard {
-            display: flex; gap: 15px; width: 100%; max-width: 500px; margin-bottom: 15px;
-            z-index: 10;
+        h1 { font-size: 1.4rem; color: #38bdf8; margin-bottom: 5px; text-align: center; }
+        p { font-size: 0.85rem; color: #94a3b8; margin-top: 0; margin-bottom: 15px; text-align: center; }
+        
+        /* 챗봇 모바일 플렉서블 컨테이너 */
+        #chat-container { 
+            width: 100%; max-width: 450px; height: 60vh; 
+            background: #1e293b; border-radius: 16px; border: 1px solid #334155; 
+            display: flex; flex-direction: column; overflow: hidden; 
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); 
         }
-        .info-box { 
-            flex: 1; background: #1e293b; padding: 10px; border-radius: 12px; 
-            text-align: center; border: 1px solid #334155; font-weight: bold;
-        }
-        .count-num { font-size: 1.5rem; color: #facc15; display: block; margin-top: 5px; }
-
-        /* 💡 모바일 캔버스 박스 스케일링 설정 */
-        #canvas-holder {
-            position: relative; width: 100%; max-width: 500px; aspect-ratio: 4 / 3;
-            border-radius: 16px; overflow: hidden; border: 2px solid #334155;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
-            background-color: #000;
-        }
-        canvas { width: 100% !important; height: 100% !important; object-fit: cover; }
+        #chat-window { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; font-size: 0.95rem; }
+        
+        /* 말풍선 스타일 디자인 */
+        .msg { padding: 10px 14px; border-radius: 12px; max-width: 80%; word-break: break-all; line-height: 1.4; }
+        .user { background: #38bdf8; color: #0f172a; align-self: flex-end; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .ai { background: #334155; color: #f8fafc; align-self: flex-start; border: 1px solid #475569; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        
+        /* 하단 입력창 구역 */
+        #input-box { display: flex; padding: 10px; background: #0f172a; border-top: 1px solid #334155; }
+        input { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #334155; background: #1e293b; color: #fff; outline: none; font-size: 0.95rem; }
+        input:disabled { background: #0f172a; color: #64748b; cursor: not-allowed; }
+        button { margin-left: 8px; padding: 0 20px; background: #38bdf8; color: #0f172a; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
+        button:disabled { background: #475569; color: #94a3b8; cursor: not-allowed; }
     </style>
 </head>
 <body>
 
-    <h1>🏋️‍♂️ AI 모션 트레이너</h1>
-    <p>카메라 앞에서 양손을 번쩍 들어 '만세'를 해보세요!</p>
+    <h1>🌐 온디바이스 AI 비밀 대화방</h1>
+    <p>서버가 없습니다. 토큰이 없습니다. 데이터 유출 걱정 제로!</p>
     
-    <div id="dashboard">
-        <div class="info-box">현재 상태 <span id="status-text" style="color:#38bdf8; display:block; margin-top:5px;">로딩 중...</span></div>
-        <div class="info-box">만세 횟수 <span id="counter" class="count-num">0</span></div>
+    <div id="chat-container">
+        <div id="chat-window">
+            <div class="msg ai" id="system-msg">🤖 브라우저 내부로 안전하게 AI 모델을 다운로드하는 중입니다. 잠시만 기다려주세요... (약 250MB)</div>
+        </div>
+        <div id="input-box">
+            <input type="text" id="user-input" placeholder="AI 모델 로딩 완료 후 입력 가능합니다..." disabled onkeypress="if(event.keyCode==13) sendMsg()">
+            <button id="send-btn" onclick="sendMsg()" disabled>전송</button>
+        </div>
     </div>
-    
-    <div id="canvas-holder"></div>
 
     <script>
-        let video;
-        let poseNet;
-        let poses = [];
-        
-        let count = 0;
-        let isManse = false;
-        
-        const statusText = document.getElementById('status-text');
-        const counterElement = document.getElementById('counter');
+        const chatWindow = document.getElementById('chat-window');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const systemMsg = document.getElementById('system-msg');
 
-        // 1. p5.js 설정 및 카메라 강제 구동 (모바일 멈춤 철저히 방지)
-        function setup() {
-            // 화면 크기에 맞는 대화형 캔버스 생성 및 지정 구역 배치
-            const canvas = createCanvas(640, 480);
-            canvas.parent('canvas-holder');
+        let generator = null;
 
-            // 스마트폰 전면 카메라 요청 옵션 세팅
-            const constraints = {
-                video: { facingMode: "user", width: 640, height: 480 },
-                audio: false
-            };
-            
-            statusText.innerText = "카메라 연결 중...";
-            video = createCapture(constraints, function(stream) {
-                statusText.innerText = "AI 엔진 로드 중...";
-                // 모바일 브라우저의 강제 정지를 막기 위한 play 유도
-                const videoEl = document.querySelector('video');
-                if(videoEl) {
-                    videoEl.setAttribute('playsinline', '');
-                    videoEl.muted = true;
-                    videoEl.play();
-                }
-            });
-            video.size(640, 480);
-            video.hide(); // 원본 영상 피드는 숨김
+        // 1. 페이지 로드 시 허깅페이스 미러 서버에서 모델 다운로드 및 브라우저 탑재 시작
+        async function loadModel() {
+            const modelCandidates = [
+                'Xenova/LaMini-Flan-T5-78M',
+                'Xenova/flan-t5-small'
+            ];
 
-            // 2. 포즈 인식 엔진(PoseNet) 초기화
-            poseNet = ml5.poseNet(video, modelReady);
-            poseNet.on('pose', function(results) {
-                poses = results;
-            });
-        }
+            let lastError = null;
 
-        function modelReady() {
-            statusText.innerText = "자세 대기 중";
-        }
-
-        // 3. 매 프레임마다 모바일 화면을 다시 그리는 메인 루프 함수
-        function draw() {
-            // 카메라 영상 화면 출력
-            image(video, 0, 0, width, height);
-
-            // 인식된 포즈 데이터가 존재할 때만 연산 가동
-            if (poses.length > 0) {
-                let pose = poses[0].pose;
-
-                // 관절 포인트 드로잉 연산
-                for (let i = 0; i < pose.keypoints.length; i++) {
-                    let keypoint = pose.keypoints[i];
-                    if (keypoint.score > 0.2) {
-                        fill(255, 0, 85);
-                        noStroke();
-                        ellipse(keypoint.position.x, keypoint.position.y, 10, 10);
+            try {
+                // 모델/리비전 변경으로 인한 404를 대비해 후보 모델을 순차 시도
+                for (const modelName of modelCandidates) {
+                    systemMsg.innerText = `🤖 AI 모델 다운로드 중: ${modelName}`;
+                    try {
+                        generator = await window.pipeline('text2text-generation', modelName);
+                        break;
+                    } catch (e) {
+                        lastError = e;
+                        console.warn(`모델 로드 실패: ${modelName}`, e);
                     }
                 }
 
-                // 💡 주요 관절 데이터 추출 (어깨 및 손목)
-                let leftShoulder = pose.leftShoulder;
-                let rightShoulder = pose.rightShoulder;
-                let leftWrist = pose.leftWrist;
-                let rightWrist = pose.rightWrist;
-
-                // 4. [동작 인식 조건문] 양 손목이 양 어깨보다 위로 올라갔는지 판별
-                // (화면 좌표계 특성상 Y값이 작을수록 상단임)
-                if (leftWrist.confidence > 0.3 && rightWrist.confidence > 0.3) {
-                    if (leftWrist.y < leftShoulder.y && rightWrist.y < rightShoulder.y) {
-                        statusText.innerText = "🙌 만세 성공!!";
-                        statusText.style.color = "#4ade80";
-                        
-                        if (!isManse) {
-                            count++;
-                            counterElement.innerText = count;
-                            isManse = true;
-                        }
-                    } else {
-                        statusText.innerText = "자세 대기 중";
-                        statusText.style.color = "#38bdf8";
-                        isManse = false;
-                    }
+                if (!generator) {
+                    throw lastError || new Error('모든 모델 후보 로드 실패');
                 }
+                
+                // 로딩 완료 시 UI 활성화 및 안내 변경
+                systemMsg.innerText = "🎯 AI 모델 다운로드 및 메모리 탑재 완료! 영문으로 질문을 입력해보세요. (예: Hello!, What is AI?)";
+                userInput.disabled = false;
+                sendBtn.disabled = false;
+                userInput.placeholder = "영문으로 대화를 시작하세요...";
+                userInput.focus();
+            } catch (err) {
+                systemMsg.innerText = "❌ 모델 로드 실패. 네트워크 상태 또는 CDN 접근 권한을 확인하세요.";
+                console.error(err);
             }
         }
+
+        // 2. 100% 로컬 브라우저 연산 기반 메시지 전송 및 답변 생성
+        async function sendMsg() {
+            const text = userInput.value.trim();
+            if (!text || !generator) return;
+
+            // 유저 말풍선 추가
+            appendMessage(text, 'user');
+            userInput.value = '';
+
+            // AI 연산 시작 안내 말풍선 추가
+            const loadingDiv = appendMessage("스마트폰 내부 장치로 문장 연산 중...", 'ai');
+
+            try {
+                // 외부 통신 없이 기기 자체 자원(WebAssembly)으로 수행되는 문장 생성 연산
+                const response = await generator(text, {
+                    max_new_tokens: 60,
+                    temperature: 0.7,
+                    repetition_penalty: 1.2
+                });
+
+                // 생성된 결과 텍스트 추출 및 화면 표기
+                const aiReply = response[0].generated_text;
+                loadingDiv.innerText = aiReply;
+            } catch (err) {
+                loadingDiv.innerText = "❌ 내부 연산 중 오류가 발생했습니다.";
+                console.error(err);
+            }
+        }
+
+        // 말풍선을 채팅창에 추가하고 스크롤을 하단으로 내리는 함수
+        function appendMessage(text, sender) {
+            const div = document.createElement('div');
+            div.className = `msg ${sender}`;
+            div.innerText = text;
+            chatWindow.appendChild(div);
+            chatWindow.scrollTop = chatWindow.scrollHeight; // 스크롤 하단 자동 이동
+            return div;
+        }
+
+        // 라이브러리 연동 안정성 확보를 위해 1초 뒤 모델 로드 실행
+        window.onload = () => {
+            setTimeout(loadModel, 1000);
+        };
     </script>
 </body>
 </html>
