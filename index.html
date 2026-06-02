@@ -16,7 +16,6 @@
         h1 { font-size: 1.5rem; color: #38bdf8; margin-bottom: 5px; text-align: center; }
         p { font-size: 0.85rem; color: #94a3b8; margin-top: 0; margin-bottom: 20px; text-align: center; }
         
-        /* 메인 컨테이너 카드 */
         .card { 
             width: 100%; max-width: 450px; 
             background: #1e293b; padding: 20px; border-radius: 16px; 
@@ -24,7 +23,7 @@
             box-sizing: border-box;
         }
         
-        .status { font-weight: bold; color: #22c55e; text-align: center; margin-bottom: 15px; font-size: 0.95rem; }
+        .status { font-weight: bold; color: #38bdf8; text-align: center; margin-bottom: 15px; font-size: 0.95rem; }
         
         .input-group { margin-bottom: 15px; }
         label { display: block; font-size: 0.9rem; color: #cbd5e1; margin-bottom: 5px; }
@@ -33,7 +32,6 @@
         button { width: 100%; padding: 12px; background: #38bdf8; color: #0f172a; border: none; border-radius: 8px; font-weight: bold; font-size: 1rem; cursor: pointer; transition: background 0.2s; }
         button:hover { background: #7dd3fc; }
         
-        /* 결과 창 스타일 */
         #result-box { margin-top: 20px; padding: 15px; border-radius: 8px; background: #0f172a; border: 1px solid #334155; text-align: center; display: none; }
         .pass { color: #4ade80; font-size: 1.3rem; font-weight: bold; }
         .fail { color: #f87171; font-size: 1.3rem; font-weight: bold; }
@@ -42,10 +40,10 @@
 <body>
 
     <h1>📈 AI 성적 합격 예측기</h1>
-    <p>사이킷런 로지스틱 회귀 알고리즘을 자바스크립트로 구현한 웹앱</p>
+    <p>코랩에서 학습된 Scikit-learn 하이퍼파라미터를 탑재한 초경량 웹앱</p>
     
     <div class="card">
-        <div id="model-status" class="status">⏳ 내장된 데이터셋으로 AI 모델 학습 중...</div>
+        <div id="model-status" class="status">🎯 Scikit-learn 최적 수식 탑재 완료</div>
         
         <div class="input-group">
             <label for="hours-input">하루 평균 공부 시간 (0 ~ 12시간 입력):</label>
@@ -59,55 +57,17 @@
     </div>
 
     <script>
-        // ⭐️ 1. 사이킷런 실습용 표준 훈련 데이터셋 정의 (공부시간 x, 합격여부 y [0:불합격, 1:합격])
-        const trainX = [1, 2, 2.5, 3.5, 4, 5, 5.5, 6, 7, 8, 9, 10];
-        const trainY = [0, 0,  0,   0, 0, 1,   0, 1, 1, 1, 1,  1];
+        // ⭐️ [학생 실습 핵심 포인트] 구글 코랩에서 구한 사이킷런 파라미터 변수를 상수로 직접 고정하기
+        // 예시 모델 수식: z = 1.6234 * 공부시간 - 7.8421
+        const w = 1.6234;  // model.coef_[0][0] 결과값 입력 구역
+        const b = -7.8421; // model.intercept_[0] 결과값 입력 구역
 
-        // 모델 파라미터 (기울기 w, 절편 b) 초기화
-        let w = 0.0;
-        let b = 0.0;
-        const learningRate = 0.1; // 학습률
-        const epochs = 2000;      // 반복 학습 횟수
-
-        // 시그모이드 함수 구현
+        // 로지스틱 회귀의 심장: 시그모이드 함수
         function sigmoid(z) {
             return 1 / (1 + Math.exp(-z));
         }
 
-        // ⭐️ 2. 경사하강법(Gradient Descent) 기반 로지스틱 회귀 모델 학습 함수
-        function trainModel() {
-            const n = trainX.length;
-
-            for (let epoch = 0; epoch < epochs; epoch++) {
-                let dw = 0;
-                let db = 0;
-
-                for (let i = 0; i < n; i++) {
-                    const x = trainX[i];
-                    const y = trainY[i];
-                    
-                    // 선형 예측 후 시그모이드 통과 (확률 계산)
-                    const predProb = sigmoid(w * x + b);
-                    
-                    // 오차 계산
-                    const error = predProb - y;
-                    
-                    // 미분치 누적
-                    dw += error * x;
-                    db += error;
-                }
-
-                // 가중치(기울기) 및 절편 업데이트 (사이킷런의 fit 과정)
-                w -= (learningRate * dw) / n;
-                b -= (learningRate * db) / n;
-            }
-
-            // 학습 완료 후 UI 업데이트
-            document.getElementById('model-status').innerText = "🎯 AI 모델 학습 완료! (수식 최적화 완료)";
-            console.log(`학습 완료 -> 기울기(w): ${w.toFixed(4)}, 절편(b): ${b.toFixed(4)}`);
-        }
-
-        // ⭐️ 3. 사용자 입력값 기반 예측 및 결과 출력 함수
+        // ⭐️ 실시간 대입 및 결과 판정 함수
         function predictPassFail() {
             const inputVal = document.getElementById('hours-input').value.trim();
             const resultBox = document.getElementById('result-box');
@@ -119,29 +79,26 @@
 
             const hours = parseFloat(inputVal);
 
-            // 모델 추론 연산 (z = wx + b -> sigmoid)
-            const z = w * hours + b;
-            const probability = sigmoid(z); // 합격할 확률 (0.0 ~ 1.0)
+            // 💡 [수식 연산] 복잡한 반복 연산 없이 1차 함수 결합 후 시그모이드 변환 끝
+            const z = (w * hours) + b;
+            const probability = sigmoid(z); // 0.0 ~ 1.0 사이의 확률 산출
             const probPercent = Math.round(probability * 100);
 
             resultBox.style.display = "block";
 
-            // 💡 결정 경계(Decision Boundary) 0.5(50%)를 기준으로 합격/불합격 판정
+            // 결정 경계선 0.5(50%) 기준 분류 연산
             if (probability >= 0.5) {
                 resultBox.innerHTML = `
                     <p>예측 결과: <span class="pass">🎉 합격 예상</span></p>
-                    <p style="font-size:0.9rem; color:#94a3b8;">AI 분석 합격 확률: <strong>${probPercent}%</strong></p>
+                    <p style="font-size:0.9rem; color:#94a3b8;">AI 데이터 분석 합격 확률: <strong>${probPercent}%</strong></p>
                 `;
             } else {
                 resultBox.innerHTML = `
                     <p>예측 결과: <span class="fail">😭 불합격 예상</span></p>
-                    <p style="font-size:0.9rem; color:#94a3b8;">AI 분석 합격 확률: <strong>${probPercent}%</strong></p>
+                    <p style="font-size:0.9rem; color:#94a3b8;">AI 데이터 분석 합격 확률: <strong>${probPercent}%</strong></p>
                 `;
             }
         }
-
-        // 페이지 로드 시 백그라운드에서 즉시 모델 학습 가동
-        window.onload = trainModel;
     </script>
 </body>
 </html>
