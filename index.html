@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>공공데이터 융합: AI 헬스 가이드</title>
+    <title>AI 성적 예측기: 로지스틱 회귀</title>
     <style>
         body { 
             font-family: 'Malgun Gothic', sans-serif; 
@@ -13,146 +13,134 @@
             display: flex; flex-direction: column; align-items: center; justify-content: center; 
             min-height: 100vh; box-sizing: border-box; 
         }
-        h1 { font-size: 1.5rem; color: #22c55e; margin-bottom: 5px; text-align: center; }
+        h1 { font-size: 1.5rem; color: #38bdf8; margin-bottom: 5px; text-align: center; }
         p { font-size: 0.85rem; color: #94a3b8; margin-top: 0; margin-bottom: 20px; text-align: center; }
         
+        /* 메인 컨테이너 카드 */
         .card { 
-            width: 100%; max-width: 480px; 
-            background: #1e293b; padding: 25px; border-radius: 16px; 
+            width: 100%; max-width: 450px; 
+            background: #1e293b; padding: 20px; border-radius: 16px; 
             border: 1px solid #334155; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); 
             box-sizing: border-box;
         }
         
-        .status { font-weight: bold; color: #38bdf8; text-align: center; margin-bottom: 20px; font-size: 0.95rem; }
+        .status { font-weight: bold; color: #22c55e; text-align: center; margin-bottom: 15px; font-size: 0.95rem; }
         
         .input-group { margin-bottom: 15px; }
-        label { display: block; font-size: 0.9rem; color: #cbd5e1; margin-bottom: 6px; }
+        label { display: block; font-size: 0.9rem; color: #cbd5e1; margin-bottom: 5px; }
         input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #fff; outline: none; font-size: 1rem; box-sizing: border-box; }
         
-        button { width: 100%; padding: 14px; background: #22c55e; color: #0f172a; border: none; border-radius: 8px; font-weight: bold; font-size: 1rem; cursor: pointer; margin-top: 10px; }
-        button:hover { background: #4ade80; }
+        button { width: 100%; padding: 12px; background: #38bdf8; color: #0f172a; border: none; border-radius: 8px; font-weight: bold; font-size: 1rem; cursor: pointer; transition: background 0.2s; }
+        button:hover { background: #7dd3fc; }
         
+        /* 결과 창 스타일 */
         #result-box { margin-top: 20px; padding: 15px; border-radius: 8px; background: #0f172a; border: 1px solid #334155; text-align: center; display: none; }
-        .danger { color: #f87171; font-size: 1.25rem; font-weight: bold; }
-        .normal { color: #4ade80; font-size: 1.25rem; font-weight: bold; }
+        .pass { color: #4ade80; font-size: 1.3rem; font-weight: bold; }
+        .fail { color: #f87171; font-size: 1.3rem; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <h1>🏥 공공데이터 기반 웰니스 AI</h1>
-    <p>국민건강보험 신체검사 지표를 활용한 비만 위험도 분류 예측 시스템</p>
+    <h1>📈 AI 성적 합격 예측기</h1>
+    <p>사이킷런 로지스틱 회귀 알고리즘을 자바스크립트로 구현한 웹앱</p>
     
     <div class="card">
-        <div id="model-status" class="status">⏳ 대규모 공공데이터 분석 및 가중치 수렴 중...</div>
+        <div id="model-status" class="status">⏳ 내장된 데이터셋으로 AI 모델 학습 중...</div>
         
         <div class="input-group">
-            <label for="waist-input">1. 허리둘레 (cm 단위 입력):</label>
-            <input type="number" id="waist-input" placeholder="예: 82" min="50" max="150">
+            <label for="hours-input">하루 평균 공부 시간 (0 ~ 12시간 입력):</label>
+            <input type="number" id="hours-input" min="0" max="12" step="0.1" placeholder="예: 5.5">
         </div>
         
-        <div class="input-group">
-            <label for="bp-input">2. 수축기 혈압 (최고혈압, mmHg):</label>
-            <input type="number" id="bp-input" placeholder="예: 120" min="80" max="200">
-        </div>
-        
-        <div class="input-group">
-            <label for="sugar-input">3. 공복 혈당 (mg/dL):</label>
-            <input type="number" id="sugar-input" placeholder="예: 95" min="50" max="300">
-        </div>
-        
-        <button onclick="predictWellness()">종합 위험도 분석하기</button>
+        <button onclick="predictPassFail()">합격 여부 예측하기</button>
         
         <div id="result-box">
             </div>
     </div>
 
     <script>
-        // ⭐️ 1. 다중 속성 공공데이터셋 정의 (행: [허리둘레, 수축기혈압, 공복혈당])
-        const trainX = [
-            [72, 110, 85],  [95, 140, 115], [80, 118, 90], 
-            [88, 130, 105], [68, 105, 80],  [102, 145, 120],
-            [76, 122, 95],  [91, 135, 110], [84, 120, 88]
-        ];
-        // 정답 레이블 (0: 정상체중, 1: 비만위험군)
-        const trainY = [0, 1, 0, 1, 0, 1, 0, 1, 0];
+        // ⭐️ 1. 사이킷런 실습용 표준 훈련 데이터셋 정의 (공부시간 x, 합격여부 y [0:불합격, 1:합격])
+        const trainX = [1, 2, 2.5, 3.5, 4, 5, 5.5, 6, 7, 8, 9, 10];
+        const trainY = [0, 0,  0,   0, 0, 1,   0, 1, 1, 1, 1,  1];
 
-        // 파라미터 선언 (속성이 3개이므로 가중치도 3개 배열로 설정)
-        let w = [0.0, 0.0, 0.0];
+        // 모델 파라미터 (기울기 w, 절편 b) 초기화
+        let w = 0.0;
         let b = 0.0;
-        const learningRate = 0.0001; // 다중 변수 발산 방지를 위해 학습률 조정
-        const epochs = 3000;
+        const learningRate = 0.1; // 학습률
+        const epochs = 2000;      // 반복 학습 횟수
 
+        // 시그모이드 함수 구현
         function sigmoid(z) {
             return 1 / (1 + Math.exp(-z));
         }
 
-        // ⭐️ 2. 다중 경사하강법(Multi-variable Gradient Descent) 모델 최적화
+        // ⭐️ 2. 경사하강법(Gradient Descent) 기반 로지스틱 회귀 모델 학습 함수
         function trainModel() {
             const n = trainX.length;
 
             for (let epoch = 0; epoch < epochs; epoch++) {
-                let dw = [0, 0, 0];
+                let dw = 0;
                 let db = 0;
 
                 for (let i = 0; i < n; i++) {
                     const x = trainX[i];
                     const y = trainY[i];
-
-                    // z = w1*x1 + w2*x2 + w3*x3 + b 계산
-                    let z = w[0]*x[0] + w[1]*x[1] + w[2]*x[2] + b;
-                    const predProb = sigmoid(z);
+                    
+                    // 선형 예측 후 시그모이드 통과 (확률 계산)
+                    const predProb = sigmoid(w * x + b);
+                    
+                    // 오차 계산
                     const error = predProb - y;
-
-                    // 변수별 미분값 누적
-                    dw[0] += error * x[0];
-                    dw[1] += error * x[1];
-                    dw[2] += error * x[2];
+                    
+                    // 미분치 누적
+                    dw += error * x;
                     db += error;
                 }
 
-                // 가중치 업데이트
-                w[0] -= (learningRate * dw[0]) / n;
-                w[1] -= (learningRate * dw[1]) / n;
-                w[2] -= (learningRate * dw[2]) / n;
+                // 가중치(기울기) 및 절편 업데이트 (사이킷런의 fit 과정)
+                w -= (learningRate * dw) / n;
                 b -= (learningRate * db) / n;
             }
 
-            document.getElementById('model-status').innerText = "🎯 데이터 연동 및 가중치 수식 산출 완료!";
-            document.getElementById('model-status').style.color = "#22c55e";
+            // 학습 완료 후 UI 업데이트
+            document.getElementById('model-status').innerText = "🎯 AI 모델 학습 완료! (수식 최적화 완료)";
+            console.log(`학습 완료 -> 기울기(w): ${w.toFixed(4)}, 절편(b): ${b.toFixed(4)}`);
         }
 
-        // ⭐️ 3. 멀티 인풋 예측 로직 구현
-        function predictWellness() {
-            const waist = parseFloat(document.getElementById('waist-input').value.trim());
-            const bp = parseFloat(document.getElementById('bp-input').value.trim());
-            const sugar = parseFloat(document.getElementById('sugar-input').value.trim());
+        // ⭐️ 3. 사용자 입력값 기반 예측 및 결과 출력 함수
+        function predictPassFail() {
+            const inputVal = document.getElementById('hours-input').value.trim();
             const resultBox = document.getElementById('result-box');
-
-            if (isNaN(waist) || isNaN(bp) || isNaN(sugar)) {
-                alert("모든 필수 속성 지표를 정수로 정확히 입력해 주세요.");
+            
+            if (!inputVal || isNaN(inputVal)) {
+                alert("올바른 공부 시간을 입력해 주세요.");
                 return;
             }
 
-            // 다중 선형 변환 후 시그모이드 매핑
-            const z = w[0]*waist + w[1]*bp + w[2]*sugar + b;
-            const probability = sigmoid(z);
-            const riskPercent = Math.round(probability * 100);
+            const hours = parseFloat(inputVal);
+
+            // 모델 추론 연산 (z = wx + b -> sigmoid)
+            const z = w * hours + b;
+            const probability = sigmoid(z); // 합격할 확률 (0.0 ~ 1.0)
+            const probPercent = Math.round(probability * 100);
 
             resultBox.style.display = "block";
 
+            // 💡 결정 경계(Decision Boundary) 0.5(50%)를 기준으로 합격/불합격 판정
             if (probability >= 0.5) {
                 resultBox.innerHTML = `
-                    <p>AI 예측 결과: <span class="danger">⚠️ 대사증후군 및 비만 위험군</span></p>
-                    <p style="font-size:0.9rem; color:#94a3b8;">종합 신체 지표 위험도: <strong>${riskPercent}%</strong></p>
+                    <p>예측 결과: <span class="pass">🎉 합격 예상</span></p>
+                    <p style="font-size:0.9rem; color:#94a3b8;">AI 분석 합격 확률: <strong>${probPercent}%</strong></p>
                 `;
             } else {
                 resultBox.innerHTML = `
-                    <p>AI 예측 결과: <span class="normal">✅ 정상 체중군 (안정 상태)</span></p>
-                    <p style="font-size:0.9rem; color:#94a3b8;">종합 신체 지표 위험도: <strong>${riskPercent}%</strong></p>
+                    <p>예측 결과: <span class="fail">😭 불합격 예상</span></p>
+                    <p style="font-size:0.9rem; color:#94a3b8;">AI 분석 합격 확률: <strong>${probPercent}%</strong></p>
                 `;
             }
         }
 
+        // 페이지 로드 시 백그라운드에서 즉시 모델 학습 가동
         window.onload = trainModel;
     </script>
 </body>
